@@ -38,7 +38,7 @@ const AddContentModal: React.FC<Props> = ({
   const [error, setError] = useState<string>('');
   const [success, setSuccess] = useState<string>('');
 
-  const API_BASE_URL = 'http://localhost:5000/api';
+  const API_BASE_URL = 'https://aieera-calender.onrender.com/api';
 
   /* ---------- pre-fill in edit mode ---------- */
   useEffect(() => {

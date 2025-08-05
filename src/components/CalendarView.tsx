@@ -10,7 +10,7 @@ import 'react-big-calendar/lib/css/react-big-calendar.css';
 import './CustomCalendar.css'; // ✨ NEW: Import a custom CSS file for specific overrides
 
 const localizer = momentLocalizer(moment);
-const API_BASE_URL = 'http://localhost:5000/api';
+const API_BASE_URL = 'https://aieera-calender.onrender.com/api';
 
 // ✨ NEW: Custom Toolbar Component
 const CustomToolbar = (toolbar: ToolbarProps) => {
