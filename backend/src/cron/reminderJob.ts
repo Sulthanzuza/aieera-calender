@@ -1,42 +1,36 @@
 import cron from 'node-cron';
 import Content from '../models/Content';
-import { sendReminderEmail } from '../utils/emailService';
+import { getTransporter, sendReminderEmail } from '../utils/emailService';
 
-export const startReminderJob = (): void => {
-  // Run every minute to check for reminders
-  cron.schedule('* * * * *', async () => {
+
+export const startReminderJob = () => {
+  cron.schedule('*/5 * * * *', async () => {
+    const now = new Date();
+    const start = new Date(now.getTime() + 4 * 60 * 60 * 1000);
+    const end   = new Date(start.getTime() + 5 * 60 * 1000); 
+
     try {
-      const now = new Date();
-      const fourHoursFromNow = new Date(now.getTime() + (4 * 60 * 60 * 1000));
-      
-      // Find content scheduled exactly 4 hours from now that hasn't been reminded
-      const contentToRemind = await Content.find({
-        scheduledTime: {
-          $gte: fourHoursFromNow,
-          $lt: new Date(fourHoursFromNow.getTime() + 60000) // Within 1 minute window
-        },
+      const posts = await Content.find({
+        scheduledTime: { $gte: start, $lt: end },
         reminderSent: false
       });
 
-      console.log(`Found ${contentToRemind.length} content items needing reminders`);
+      if (posts.length === 0) return;
 
-      for (const content of contentToRemind) {
+      const transporter = getTransporter();
+
+      for (const post of posts) {
         try {
-          await sendReminderEmail(content);
-          
-          // Mark reminder as sent
-          content.reminderSent = true;
-          await content.save();
-          
-          console.log(`Reminder sent for content: ${content._id}`);
-        } catch (emailError) {
-          console.error(`Failed to send reminder for content ${content._id}:`, emailError);
+          await sendReminderEmail(post, transporter);
+          post.reminderSent = true;
+          await post.save();
+          console.log(`Reminder sent for ${post._id}`);
+        } catch (err) {
+          console.error(`E-mail failed for ${post._id}`, err);
         }
       }
-    } catch (error) {
-      console.error('Error in reminder job:', error);
+    } catch (err) {
+      console.error('Cron job error:', err);
     }
   });
-
-  console.log('Reminder job started - checking every minute for upcoming content');
 };

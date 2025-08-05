@@ -12,8 +12,8 @@ interface CreateContentRequest {
   clientName: string;    
 }
 interface StatsQuery {
-  month?: string; // YYYY-MM format
-  year?: string;  // YYYY format
+  month?: string; 
+  year?: string; 
   clientName?: string;
 }
 
@@ -79,7 +79,6 @@ export const createContent = async (
   }
 };
 
-// --------------- GET CONTENT -----------------
 export const getContent = async (
   req: Request<{}, {}, {}, GetContentQuery>,
   res: Response
@@ -158,15 +157,37 @@ export const getEventsByDate = async (req: Request, res: Response) => {
   }
 };
 
-// ----------- UPDATE CONTENT -----------------
+
 export const updateContent = async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
-    const updates = req.body;
+    const updates = { ...req.body };
 
-    // If userEmail is present, validate and clean
+    
     if (Array.isArray(updates.userEmail)) {
       updates.userEmail = updates.userEmail.map((email: string) => email.trim().toLowerCase());
+    }
+
+    
+    if (updates.scheduledTime && updates.date) {
+      const contentDate = new Date(updates.date);
+      const [hours, minutes] = updates.scheduledTime.split(':').map(Number);
+      const scheduledDateTime = new Date(contentDate);
+      scheduledDateTime.setHours(hours, minutes, 0, 0);
+      
+      
+      if (scheduledDateTime <= new Date()) {
+        return res.status(400).json({
+          message: 'Scheduled time cannot be in the past'
+        });
+      }
+      
+      
+      updates.scheduledTime = scheduledDateTime;
+    }
+    
+    else if (updates.scheduledTime && !updates.date) {
+      delete updates.scheduledTime;
     }
 
     const content = await Content.findByIdAndUpdate(
@@ -183,6 +204,7 @@ export const updateContent = async (req: Request, res: Response) => {
       message: 'Content updated successfully',
       content
     });
+
   } catch (error: any) {
     console.error('Error updating content:', error);
     res.status(500).json({
@@ -191,6 +213,7 @@ export const updateContent = async (req: Request, res: Response) => {
     });
   }
 };
+
 
 // ----------- DELETE CONTENT -----------------
 export const deleteContent = async (req: Request, res: Response) => {

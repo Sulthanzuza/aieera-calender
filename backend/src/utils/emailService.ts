@@ -1,6 +1,7 @@
 import nodemailer from 'nodemailer';
 import { IContent } from '../models/Content';
 
+/* ---------- ENV → CONFIG ---------- */
 interface EmailConfig {
   host: string;
   port: number;
@@ -9,132 +10,99 @@ interface EmailConfig {
 }
 
 const getEmailConfig = (): EmailConfig => {
-  const host = process.env.EMAIL_HOST;
-  const port = process.env.EMAIL_PORT;
-  const user = process.env.EMAIL_USER;
-  const pass = process.env.EMAIL_PASS;
-
-  if (!host || !port || !user || !pass) {
-    throw new Error('Email configuration is incomplete. Check EMAIL_HOST, EMAIL_PORT, EMAIL_USER, and EMAIL_PASS environment variables.');
+  const { EMAIL_HOST, EMAIL_PORT, EMAIL_USER, EMAIL_PASS } = process.env;
+  if (!EMAIL_HOST || !EMAIL_PORT || !EMAIL_USER || !EMAIL_PASS) {
+    throw new Error(
+      'EMAIL_HOST, EMAIL_PORT, EMAIL_USER, and EMAIL_PASS must be set'
+    );
   }
-
   return {
-    host,
-    port: parseInt(port),
-    user,
-    pass
+    host: EMAIL_HOST,
+    port: parseInt(EMAIL_PORT, 10),
+    user: EMAIL_USER,
+    pass: EMAIL_PASS
   };
 };
 
-const createTransporter = () => {
-  const config = getEmailConfig();
-  
-  return nodemailer.createTransport({
-    host: config.host,
-    port: config.port,
-    secure: config.port === 465, // true for 465, false for other ports
-    auth: {
-      user: config.user,
-      pass: config.pass
-    }
+/* ---------- SINGLETON TRANSPORTER ---------- */
+let cachedTransporter: nodemailer.Transporter | null = null;
+
+export const getTransporter = () => {
+  if (cachedTransporter) return cachedTransporter;
+
+  const cfg = getEmailConfig();
+  cachedTransporter = nodemailer.createTransport({
+    host: cfg.host,
+    port: cfg.port,
+    secure: cfg.port === 465,
+    pool: true,                     // keep connection open
+    auth: { user: cfg.user, pass: cfg.pass }
   });
+  return cachedTransporter;
 };
 
-export const sendReminderEmail = async (content: IContent): Promise<void> => {
-  try {
-    const transporter = createTransporter();
-    
-    const scheduledDate = content.scheduledTime.toLocaleDateString();
-    const scheduledTime = content.scheduledTime.toLocaleTimeString([], { 
-      hour: '2-digit', 
-      minute: '2-digit' 
-    });
 
-    const contentTypeTitle = content.contentType.charAt(0).toUpperCase() + content.contentType.slice(1);
-    
-    const emailHTML = `
-      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
-        <div style="background: linear-gradient(135deg, #3B82F6 0%, #1E40AF 100%); color: white; padding: 30px; border-radius: 10px 10px 0 0; text-align: center;">
-          <h1 style="margin: 0; font-size: 24px;">📅 Content Reminder</h1>
-          <p style="margin: 10px 0 0 0; opacity: 0.9;">Your social media content is scheduled in 4 hours!</p>
-        </div>
-        
-        <div style="background: #f8fafc; padding: 30px; border-radius: 0 0 10px 10px; border: 1px solid #e2e8f0;">
-          <div style="background: white; padding: 20px; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
-            <h2 style="color: #1e293b; margin: 0 0 15px 0; font-size: 18px;">
-              📱 ${contentTypeTitle} Scheduled
-            </h2>
-            
-            <div style="margin: 15px 0;">
-              <strong style="color: #475569;">📅 Date:</strong> ${scheduledDate}
-            </div>
-            
-            <div style="margin: 15px 0;">
-              <strong style="color: #475569;">⏰ Time:</strong> ${scheduledTime}
-            </div>
-            
-            <div style="margin: 15px 0;">
-              <strong style="color: #475569;">📝 Caption:</strong>
-              <div style="background: #f1f5f9; padding: 10px; border-radius: 5px; margin-top: 5px; white-space: pre-wrap;">${content.caption}</div>
-            </div>
-            
-            ${content.contentLink ? `
-            <div style="margin: 15px 0;">
-              <strong style="color: #475569;">🔗 Content Link:</strong>
-              <a href="${content.contentLink}" style="color: #3B82F6; text-decoration: none; word-break: break-all;">${content.contentLink}</a>
-            </div>
-            ` : ''}
-          </div>
-          
-          <div style="text-align: center; margin-top: 20px; padding: 15px; background: #dbeafe; border-radius: 8px;">
-            <p style="margin: 0; color: #1e40af;">
-              ⏰ <strong>Don't forget!</strong> Your content is scheduled to go live in 4 hours.
-            </p>
-          </div>
-        </div>
-        
-        <div style="text-align: center; margin-top: 20px; color: #64748b; font-size: 12px;">
-          <p>This is an automated reminder from your Social Media Content Calendar.</p>
-        </div>
+export const sendReminderEmail = async (
+  content: IContent,
+  transporter = getTransporter()
+): Promise<void> => {
+  const scheduledDate = content.scheduledTime.toLocaleDateString();
+  const scheduledTime = content.scheduledTime.toLocaleTimeString([], {
+    hour: '2-digit',
+    minute: '2-digit'
+  });
+
+  const contentTypeTitle =
+    content.contentType.charAt(0).toUpperCase() + content.contentType.slice(1);
+
+  const html = `
+    <div style="font-family: Arial, sans-serif; max-width:600px;margin:0 auto">
+      <h2 style="background:#3B82F6;color:#fff;padding:16px 24px;border-radius:8px 8px 0 0">
+        📅 Content Reminder
+      </h2>
+      <div style="border:1px solid #e2e8f0;border-top:0;padding:24px">
+        <p><b>${contentTypeTitle}</b> is scheduled in <b>4 h</b></p>
+        <p>📅 <b>Date:</b> ${scheduledDate}</p>
+        <p>⏰ <b>Time:</b> ${scheduledTime}</p>
+        <p>📝 <b>Caption:</b><br/>${content.caption}</p>
+        ${
+          content.contentLink
+            ? `<p>🔗 <b>Link:</b> <a href="${content.contentLink}">${content.contentLink}</a></p>`
+            : ''
+        }
       </div>
-    `;
+      <p style="font-size:12px;color:#64748b;text-align:center;margin-top:16px">
+        Automated reminder from your Social-Media Calendar
+      </p>
+    </div>
+  `;
 
-    const mailOptions = {
-      from: `"Social Media Calendar" <${process.env.EMAIL_USER}>`,
-      to: content.userEmail,
-      subject: `⏰ Reminder: ${contentTypeTitle} scheduled for ${scheduledTime}`,
-      html: emailHTML,
-      text: `
-Content Reminder
-
-Your ${content.contentType} is scheduled in 4 hours!
+  const mailOptions = {
+    from: `"Social Media Calendar" <${process.env.EMAIL_USER}>`,
+    to: Array.isArray(content.userEmail)
+      ? content.userEmail
+      : [content.userEmail],
+    subject: `⏰ Reminder: ${contentTypeTitle} @ ${scheduledTime}`,
+    html,
+    text: `
+${contentTypeTitle} reminder – 4 h left
 
 Date: ${scheduledDate}
 Time: ${scheduledTime}
 Caption: ${content.caption}
-${content.contentLink ? `Content Link: ${content.contentLink}` : ''}
+${content.contentLink ? `Link: ${content.contentLink}` : ''}
 
-Don't forget to post your content!
-      `
-    };
+--
+Social Media Calendar
+    `
+  };
 
-    const info = await transporter.sendMail(mailOptions);
-    console.log('Email sent successfully:', info.messageId);
-    
-  } catch (error) {
-    console.error('Failed to send reminder email:', error);
-    throw error;
-  }
+  await transporter.sendMail(mailOptions);
 };
 
-export const testEmailConnection = async (): Promise<boolean> => {
-  try {
-    const transporter = createTransporter();
-    await transporter.verify();
-    console.log('Email service is ready');
-    return true;
-  } catch (error) {
-    console.error('Email service connection failed:', error);
-    return false;
-  }
+
+export const verifyEmailConnection = async (): Promise<void> => {
+  await getTransporter().verify();
 };
+
+
