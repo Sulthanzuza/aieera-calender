@@ -1,0 +1,72 @@
+/* Make the calendar more spacious and modern */
+.rbc-calendar {
+  border-radius: 0.5rem;
+  border: 1px solid #e2e8f0; /* slate-200 */
+}
+
+/* Style the header row (Sun, Mon, Tue...) */
+.rbc-header {
+  padding: 12px 4px;
+  font-weight: 600;
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  color: #475569; /* slate-600 */
+  border-bottom: 1px solid #e2e8f0;
+}
+
+/* Remove borders between headers */
+.rbc-header + .rbc-header {
+  border-left: 0;
+}
+
+/* Remove borders between day columns for a cleaner look */
+.rbc-day-bg + .rbc-day-bg {
+  border-left: 0;
+}
+
+/* Style for the "show more" button on month view */
+.rbc-show-more {
+  color: #3b82f6; /* blue-500 */
+  font-weight: 500;
+  font-size: 0.8rem;
+  background-color: transparent;
+  transition: all 0.2s;
+}
+.rbc-show-more:hover,
+.rbc-show-more:focus {
+  color: #2563eb; /* blue-600 */
+  text-decoration: underline;
+  background-color: #eff6ff; /* blue-50 */
+}
+
+/* Improve popup look */
+.rbc-overlay {
+  border-radius: 0.5rem;
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+  border: 1px solid #e2e8f0;
+}
+.rbc-overlay-header {
+  padding: 8px 12px;
+  font-weight: 600;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+/* Agenda View Styling */
+.rbc-agenda-view table {
+  border: 1px solid #e2e8f0;
+  border-radius: 0.5rem;
+  overflow: hidden;
+}
+.rbc-agenda-view thead {
+    background-color: #f8fafc; /* slate-50 */
+}
+.rbc-agenda-date-cell, .rbc-agenda-time-cell {
+  padding: 12px;
+}
+.rbc-agenda-date-cell {
+  font-weight: 700;
+  color: #1e293b; /* slate-800 */
+}
+.rbc-agenda-event-cell {
+    padding: 12px;
+}
